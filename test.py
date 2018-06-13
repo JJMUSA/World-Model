@@ -18,13 +18,14 @@ dense = tf.contrib.layers.fully_connected(inputs=tf.contrib.slim.flatten(conv2),
 policy = tf.contrib.layers.fully_connected(inputs=dense, num_outputs=1, activation_fn=tf.nn.sigmoid) #outputs the probability of moving left
 
 #defining loss function
-advantage=tf.placeholder(dtype=tf.float32,shape=[None])
-responsible_action=tf.placeholder(dtype=tf.float32,shape=None)
-loss=tf.reduce_prod(advantage*responsible_action)
+advantage=tf.placeholder(dtype=tf.float32,shape=[None,1])
+responsible_action=tf.placeholder(dtype=tf.float32,shape=[None,1])
+loss= tf.reduce_sum(advantage*policy)
 #defining optimiser
 optimiser = tf.train.RMSPropOptimizer(learning_rate=1e-4)
-
-grad= optimiser.compute_gradients(loss)
+vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+print(vars)
+grad = optimiser.compute_gradients(loss,vars)
 
 
 def imgporcessing(img):
@@ -65,7 +66,7 @@ sess.run(tf.global_variables_initializer())
 env = gym.make("Pong-v0")
 obs_buffer, reward_buffer, actionProbability_buffer, hiddenState_buffer = [], [], [], []
 #playing a hundred episode
-for i in range(100):
+for i in range(1):
     done = False
     new_obs = env.reset()
     while not done:
@@ -88,20 +89,22 @@ for i in range(100):
         hiddenState_buffer.append(hidden_state)
 
         if done:
-            epX = obs_buffer
+            epX = np.vstack(obs_buffer)
             epr = np.vstack(reward_buffer)
             eph = np.vstack(hiddenState_buffer)
             epa =np.vstack(actionProbability_buffer)
 
             obs_buffer, reward_buffer, actionProbability_buffer, hiddenState_buffer = [], [], [], []
             epr = discounted_reward(epr)
+
+
             feed_dict = {input:epX,
                          dense:eph,
                          advantage:epr,
                          responsible_action:epa
                          }
 
-            g=sess.run(grad,feed_dict=feed_dict)
+            g = sess.run(grad, feed_dict=feed_dict)
             print(g)
 
 
